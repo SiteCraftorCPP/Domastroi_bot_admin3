@@ -60,9 +60,13 @@ def load_questions():
         data = json.load(file)
     return data["questions"]
 
-# Standalone: ID администратора (получатель заявок) из env
+# Standalone: ID администраторов (получатели заявок) из env, через запятую
+def get_admin_ids():
+    return [int(x.strip()) for x in ADMIN_ID.split(',') if x.strip()]
+
 def get_admin_id():
-    return int(ADMIN_ID)
+    """Первый админ — для root в БД и обратной совместимости."""
+    return get_admin_ids()[0]
 
 # Standalone: проверка подписки отключена (всегда активно)
 async def check_subscription(user_id):
@@ -880,17 +884,20 @@ async def main():
         
         await state.finish()
         
-        # Создаем и отправляем документ администратору после завершения опроса
+        # Создаем и отправляем документ всем администраторам
         request_id = await get_request_id(user_id)
         file_path = await create_word_document(user_id, request_id)
-        admin_id = get_admin_id()
+        admin_ids = get_admin_ids()
         
         admin_message = f"Уважаемый администратор, поступила новая заявка от пользователя @{callback_query.from_user.username} {callback_query.from_user.first_name} {callback_query.from_user.last_name}"
         if not callback_query.from_user.username:
             admin_message = f"Уважаемый администратор, поступила новая заявка от пользователя {callback_query.from_user.first_name} {callback_query.from_user.last_name}"
         
-        await bot.send_message(admin_id, admin_message)
-        await bot.send_document(admin_id, open(file_path, 'rb'))
+        with open(file_path, 'rb') as doc:
+            for aid in admin_ids:
+                await bot.send_message(aid, admin_message)
+                doc.seek(0)
+                await bot.send_document(aid, doc)
 
 
 
@@ -1136,10 +1143,9 @@ async def main():
     # Команда /manual
     @dp.message_handler(commands=['manual'])
     async def manual_command(message: types.Message):
-        admin_id = get_admin_id()
+        admin_ids = get_admin_ids()
         
-        # Проверяем, является ли пользователь администратором
-        if message.from_user.id != admin_id:
+        if message.from_user.id not in admin_ids:
             await message.answer("У вас нет доступа к этой команде.")
             return
 
