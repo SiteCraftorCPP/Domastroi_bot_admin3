@@ -71,17 +71,30 @@ def get_admin_id():
     return get_admin_ids()[0]
 
 # Проверка подписки на канал (вызывается после инициализации bot)
+# ВАЖНО: бот должен быть администратором канала с правом "Просмотр участников"
 async def is_user_in_channel(user_id):
-    try:
-        chat_id = CHANNEL_ID if CHANNEL_ID.lstrip('-').isdigit() else f'@{CHANNEL_USERNAME}'
-        member = await bot.get_chat_member(chat_id, user_id)
-        return member.status in ('member', 'administrator', 'creator')
-    except BotKicked:
-        logging.error(f"Бот удалён из канала {CHANNEL_ID}")
-        return False
-    except Exception as e:
-        logging.error(f"Ошибка проверки подписки: {e}")
-        return False
+    channels_to_try = []
+    if CHANNEL_USERNAME:
+        channels_to_try.append(f'@{CHANNEL_USERNAME.lstrip("@")}')
+    if CHANNEL_ID and CHANNEL_ID.lstrip('-').isdigit():
+        channels_to_try.append(int(CHANNEL_ID))
+
+    for channel in channels_to_try:
+        try:
+            member = await bot.get_chat_member(channel, user_id)
+            status = getattr(member, 'status', str(type(member).__name__))
+            is_member = status not in ('left', 'kicked')
+            if not is_member:
+                logging.info(f"Подписка: user={user_id} status={status} channel={channel}")
+            return is_member
+        except BotKicked:
+            logging.error(f"Бот удалён из канала {channel}")
+            return False
+        except Exception as e:
+            logging.warning(f"Проверка подписки channel={channel}: {e}")
+            continue
+    logging.error(f"Не удалось проверить подписку user={user_id}")
+    return False
 
 async def check_subscription(user_id):
     if await is_user_in_channel(user_id):
@@ -1273,6 +1286,20 @@ async def main():
 
 
     # Мануальное создание WORDA
+
+    # Команда /check_sub_debug — для админов: проверить подписку своего ID
+    @dp.message_handler(commands=['check_sub_debug'])
+    async def cmd_check_sub_debug(message: types.Message):
+        if message.from_user.id not in get_admin_ids():
+            return
+        uid = message.from_user.id
+        channel = f'@{CHANNEL_USERNAME.lstrip("@")}'
+        try:
+            member = await bot.get_chat_member(channel, uid)
+            status = getattr(member, 'status', '?')
+            await message.answer(f"Подписка: status={status}, channel={channel}\nБот должен быть админом канала.")
+        except Exception as e:
+            await message.answer(f"Ошибка: {e}\n\nБот добавлен в канал как администратор с правом «Просмотр участников»?")
 
     # Команда /manual
     @dp.message_handler(commands=['manual'])
