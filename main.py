@@ -475,24 +475,29 @@ async def main():
             )
 
             if user_status == 1:
-                # Пользователь уже начал опрос, но не завершил
-                last_step = await connection.fetchval(
-                    """
-                    SELECT last_step FROM users_designer
-                    WHERE id_telegram = $1
-                    """,
-                    message.from_user.id
-                )
                 request_id = await get_request_id(message.from_user.id)
-                # Переходим к вопросу, который был последним
-                await start_questionnaire(message, state, last_step, request_id)
-            else:
-                # Запрашиваем номер телефона, если опрос еще не начинался
-                keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-                button_phone = types.KeyboardButton(text="Поделиться номером телефона", request_contact=True)
-                keyboard.add(button_phone)  # Добавляем только кнопку для номера телефона
-                await Form.waiting_for_phone.set()
-                await message.answer("Пожалуйста, нажмите на кнопку «поделиться номером телефона»", reply_markup=keyboard)
+                if request_id is None:
+                    # БД почищена — сбрасываем и просим телефон заново
+                    await connection.execute(
+                        "UPDATE users_designer SET status = 0, last_step = 0, phone = NULL WHERE id_telegram = $1",
+                        message.from_user.id
+                    )
+                    user_status = 0
+                else:
+                    last_step = await connection.fetchval(
+                        "SELECT last_step FROM users_designer WHERE id_telegram = $1",
+                        message.from_user.id
+                    )
+                    await start_questionnaire(message, state, last_step, request_id)
+                    return
+
+            # Новый пользователь или БД почищена — запрашиваем телефон
+            await state.finish()
+            keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+            button_phone = types.KeyboardButton(text="Поделиться номером телефона", request_contact=True)
+            keyboard.add(button_phone)
+            await Form.waiting_for_phone.set()
+            await message.answer("Пожалуйста, нажмите на кнопку «поделиться номером телефона»", reply_markup=keyboard)
 
 
 
