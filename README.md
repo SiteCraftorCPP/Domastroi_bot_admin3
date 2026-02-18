@@ -44,6 +44,14 @@ cp .env.example .env
 python main.py
 ```
 
+## Обновление на VPS (после git push)
+
+```bash
+cd ~/Domastroi_bot_admin3
+git pull
+sudo systemctl restart domastroi-bot
+```
+
 ## Функции
 
 - Анкетирование с выбором вариантов и свободным вводом
@@ -51,3 +59,4 @@ python main.py
 - Генерация отчёта в Word после завершения
 - Отправка заявки администратору в Telegram
 - Команда /manual — ручное формирование документа (только для ADMIN_ID)
+- Команда /reset — сброс своего прогресса, начать анкету заново

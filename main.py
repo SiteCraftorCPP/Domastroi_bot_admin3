@@ -340,6 +340,32 @@ async def main():
 
     # End Модель Портфолио
 
+    @dp.message_handler(commands=['reset'])
+    async def cmd_reset(message: types.Message, state: FSMContext):
+        """Сброс прогресса — начать анкету заново."""
+        subscription_status = await check_subscription(message.from_user.id)
+        if not subscription_status['status']:
+            await message.answer(subscription_status['message'])
+            return
+
+        user_id = message.from_user.id
+        async with db_pool.acquire() as connection:
+            await connection.execute(
+                "UPDATE users_designer SET status = 0, last_step = 0, phone = NULL WHERE id_telegram = $1",
+                user_id
+            )
+            await connection.execute("DELETE FROM user_answers WHERE id_telegram = $1", user_id)
+            await connection.execute("DELETE FROM data_questions WHERE id_telegram = $1", user_id)
+
+        await state.finish()
+        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        keyboard.add(types.KeyboardButton("Начать"))
+        keyboard.add(types.KeyboardButton("Хелпер"))
+        await message.answer(
+            "Прогресс сброшен. Нажмите «Начать» или /GO, чтобы пройти анкету заново.",
+            reply_markup=keyboard
+        )
+
     @dp.message_handler(commands=['help'])
     @dp.message_handler(lambda message: message.text.lower() == "хелпер")
     async def helper_command(message: types.Message):
@@ -350,7 +376,8 @@ async def main():
             "1️⃣ Как заполнить техническое задание?\n"
             "    • После команды /start или нажатия кнопки 'Начать' бот попросит поделиться номером телефона и задаст вам ряд вопросов для заполнения технического задания.\n"
             "    • Выбирайте ответы из предложенных вариантов или вводите собственные. Если вы хотите прервать заполнение технического задания, используйте кнопку 'Прерваться'.\n"
-            "    • В любой момент можно вернуться к заполнению, нажав кнопку 'Продолжить' или команду /GO.\n\n"
+            "    • В любой момент можно вернуться к заполнению, нажав кнопку 'Продолжить' или команду /GO.\n"
+            "    • Чтобы начать анкету заново — команда /reset.\n\n"
         )
         await message.answer(helper_text, parse_mode="Markdown")
  
