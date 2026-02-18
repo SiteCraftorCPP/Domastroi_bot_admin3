@@ -191,7 +191,13 @@ async def main():
             await message.answer("Выберите необходимый пункт меню", reply_markup=keyboard)
 
         else:
-            await message.answer(subscription_status['message'])    
+            await message.answer(
+                "👋 Для доступа к боту подпишитесь на канал.\n\n"
+                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
+                "2️⃣ Подпишитесь\n"
+                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
+                reply_markup=get_subscribe_keyboard()
+            )
 
     # END Меню по команде menu
 
@@ -282,7 +288,13 @@ async def main():
             await show_portfolio_page(message, 1)
 
         else:
-            await message.answer(subscription_status['message'])      
+            await message.answer(
+                "👋 Для доступа к боту подпишитесь на канал.\n\n"
+                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
+                "2️⃣ Подпишитесь\n"
+                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
+                reply_markup=get_subscribe_keyboard()
+            )
 
     async def show_portfolio_page(message: types.Message, page: int, edit: bool = False):
         
@@ -345,7 +357,13 @@ async def main():
         """Сброс прогресса — начать анкету заново."""
         subscription_status = await check_subscription(message.from_user.id)
         if not subscription_status['status']:
-            await message.answer(subscription_status['message'])
+            await message.answer(
+                "👋 Для доступа к боту подпишитесь на канал.\n\n"
+                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
+                "2️⃣ Подпишитесь\n"
+                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
+                reply_markup=get_subscribe_keyboard()
+            )
             return
 
         user_id = message.from_user.id
@@ -398,13 +416,29 @@ async def main():
             await message.answer(contacts_text)
 
         else:
-            await message.answer(subscription_status['message'])  
+            await message.answer(
+                "👋 Для доступа к боту подпишитесь на канал.\n\n"
+                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
+                "2️⃣ Подпишитесь\n"
+                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
+                reply_markup=get_subscribe_keyboard()
+            )
 
     # Заполнение ТЗ --------------------------------
     
     @dp.message_handler(commands=['GO'])
     @dp.message_handler(lambda message: message.text == "Начать", state='*')
     async def ask_for_phone(message: types.Message, state: FSMContext):
+        if not await is_user_in_channel(message.from_user.id):
+            await message.answer(
+                "👋 Для доступа к боту подпишитесь на канал.\n\n"
+                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
+                "2️⃣ Подпишитесь\n"
+                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
+                reply_markup=get_subscribe_keyboard()
+            )
+            return
+
         # Удаляем открытую клавиатуру
         await message.answer("Продолжаем опрос", reply_markup=types.ReplyKeyboardRemove())
 
@@ -564,7 +598,13 @@ async def main():
             await ask_question(message, state)
             
         else:
-            await message.answer(subscription_status['message'])  
+            await message.answer(
+                "👋 Для доступа к боту подпишитесь на канал.\n\n"
+                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
+                "2️⃣ Подпишитесь\n"
+                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
+                reply_markup=get_subscribe_keyboard()
+            )
 
     # Функция для обрезки текста
     def truncate_text(text, max_length=64):
