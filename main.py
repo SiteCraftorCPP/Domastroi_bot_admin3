@@ -470,8 +470,8 @@ async def main():
                         user_id
                     )
 
-            # Устанавливаем индекс текущего вопроса, начиная с последнего сохраненного шага
-            current_question_index = max(last_step - 1, 0)
+            # Устанавливаем индекс текущего вопроса (last_step может быть None для нового пользователя)
+            current_question_index = max((last_step or 1) - 1, 0)
 
             # Обновляем состояние
             await state.update_data(questions=questions, current_question_index=current_question_index, answers=answers, custom_answers=custom_answers, request_id=request_id)
@@ -977,9 +977,17 @@ async def main():
         doc = Document()
         doc.add_heading('Отчет по опросу', 0)
 
-        # Форматируем даты
-        step_start = datetime.strptime(str(data_question['step_start']), '%Y-%m-%d %H:%M:%S.%f%z').strftime('%d.%m.%Y %H:%M')
-        step_time = datetime.strptime(str(data_question['step_time']), '%Y-%m-%d %H:%M:%S.%f%z').strftime('%d.%m.%Y %H:%M')
+        # Форматируем даты (PostgreSQL: 2025-06-26 13:50:59.65315+03)
+        def fmt_dt(dt):
+            if dt is None:
+                return '—'
+            s = str(dt)[:19]  # YYYY-MM-DD HH:MM:SS
+            try:
+                return datetime.strptime(s, '%Y-%m-%d %H:%M:%S').strftime('%d.%m.%Y %H:%M')
+            except ValueError:
+                return s
+        step_start = fmt_dt(data_question['step_start'])
+        step_time = fmt_dt(data_question['step_time'])
 
         # Добавляем данные пользователя и опроса
         doc.add_paragraph(f"ID заявки: {request_id}")
@@ -1038,8 +1046,9 @@ async def main():
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        # file_name = f"{data_question['tg_login'] or data_question['tg_firstname'] + ' ' + data_question['tg_lastname']} {user_id} {request_id}.docx"
-        file_name = f"{data_question.get('tg_login', '') or (str(data_question.get('tg_firstname') or '') + ' ' + str(data_question.get('tg_lastname') or ''))} {user_id} {request_id}.docx"
+        name_part = data_question.get('tg_login') or f"{data_question.get('tg_firstname') or ''} {data_question.get('tg_lastname') or ''}".strip() or 'user'
+        safe_name = "".join(c for c in name_part if c not in r'\/:*?"<>|')[:50]
+        file_name = f"{safe_name} {user_id} {request_id}.docx"
 
 
         file_path = os.path.join(folder_path, file_name)

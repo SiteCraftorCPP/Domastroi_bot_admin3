@@ -38,3 +38,8 @@ CREATE TABLE IF NOT EXISTS user_answers (
     answer_text TEXT,
     root INTEGER
 );
+
+-- Права для пользователя БД (запускать от postgres после создания пользователя domastroi)
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO domastroi;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO domastroi;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO domastroi;
