@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.utils.exceptions import MessageNotModified
+from aiogram.utils.exceptions import MessageNotModified, BotKicked
 from aiogram.dispatcher.filters import Text
 from aiogram.utils.executor import start_polling
 from dotenv import load_dotenv
@@ -31,6 +31,8 @@ DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT', '5432')
 BOT_API_TOKEN = os.getenv('BOT_API_TOKEN')
 ADMIN_ID = os.getenv('ADMIN_ID')
+CHANNEL_ID = os.getenv('CHANNEL_ID', '-1001915699118')  # Канал для обязательной подписки
+CHANNEL_USERNAME = os.getenv('CHANNEL_USERNAME', 'pobedonostseva_interior')
 
 if not all([DB_USER, DB_PASSWORD, DB_NAME, DB_HOST, BOT_API_TOKEN, ADMIN_ID]):
     raise ValueError("Не все переменные окружения загружены: BOT_API_TOKEN, ADMIN_ID, DB_*")
@@ -68,9 +70,32 @@ def get_admin_id():
     """Первый админ — для root в БД и обратной совместимости."""
     return get_admin_ids()[0]
 
-# Standalone: проверка подписки отключена (всегда активно)
+# Проверка подписки на канал (вызывается после инициализации bot)
+async def is_user_in_channel(user_id):
+    try:
+        chat_id = CHANNEL_ID if CHANNEL_ID.lstrip('-').isdigit() else f'@{CHANNEL_USERNAME}'
+        member = await bot.get_chat_member(chat_id, user_id)
+        return member.status in ('member', 'administrator', 'creator')
+    except BotKicked:
+        logging.error(f"Бот удалён из канала {CHANNEL_ID}")
+        return False
+    except Exception as e:
+        logging.error(f"Ошибка проверки подписки: {e}")
+        return False
+
 async def check_subscription(user_id):
-    return {'status': True}
+    if await is_user_in_channel(user_id):
+        return {'status': True}
+    return {
+        'status': False,
+        'message': f"Для использования бота необходимо подписаться на канал: t.me/{CHANNEL_USERNAME}"
+    }
+
+def get_subscribe_keyboard():
+    kb = types.InlineKeyboardMarkup()
+    kb.add(types.InlineKeyboardButton("📢 Подписаться на канал", url=f"https://t.me/{CHANNEL_USERNAME}"))
+    kb.add(types.InlineKeyboardButton("✅ Проверить подписку", callback_data="check_sub"))
+    return kb
 
 
 # Определение состояний FSM
@@ -169,9 +194,50 @@ async def main():
 
     # END Меню по команде menu
 
+    # Проверка подписки — callback "Проверить подписку"
+    @dp.callback_query_handler(lambda c: c.data == "check_sub")
+    async def check_sub_callback(call: types.CallbackQuery):
+        if await is_user_in_channel(call.from_user.id):
+            await call.message.delete()
+            admin_id = get_admin_id()
+            async with db_pool.acquire() as connection:
+                await connection.execute(
+                    """
+                    INSERT INTO users_designer (id_telegram, tg_login, tg_firstname, tg_lastname, status, phone, last_step, subscribe, root)
+                    VALUES ($1, $2, $3, $4, 0, NULL, 0, 0, $5)
+                    ON CONFLICT (id_telegram) DO NOTHING
+                    """,
+                    call.from_user.id, call.from_user.username, call.from_user.first_name, call.from_user.last_name, admin_id
+                )
+            last_step = await check_last_step(call.from_user.id)
+            keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            buttons = [["Продолжить", "Хелпер"]] if last_step != 0 else [["Начать", "Хелпер"]]
+            for row in buttons:
+                keyboard.row(*row)
+            await call.message.answer(
+                "Добро пожаловать в создание дизайна Вашего будущего дома!\n\n"
+                "Представьте, что вы только что купили новый дом! Пора приступить к его обустройству.\n\n"
+                "📝 Начать — Нажмите /GO, чтобы начать или продолжить\n\n"
+                "🤖 Хелпер — Получите помощь и советы по использованию бота /help",
+                reply_markup=keyboard
+            )
+            await call.answer("Спасибо за подписку! ✅")
+        else:
+            await call.answer("Пожалуйста, подпишитесь на канал и нажмите «Проверить подписку» снова.", show_alert=True)
+
     # Пример обработчика команды /start
     @dp.message_handler(commands='start')
     async def cmd_start(message: types.Message):
+        # Сначала проверяем подписку на канал
+        if not await is_user_in_channel(message.from_user.id):
+            await message.answer(
+                f"👋 Добро пожаловать!\n\n"
+                f"Для доступа к боту необходимо подписаться на наш канал.\n\n"
+                f"После подписки нажмите кнопку «Проверить подписку».",
+                reply_markup=get_subscribe_keyboard()
+            )
+            return
+
         admin_id = get_admin_id()
         async with db_pool.acquire() as connection:
             await connection.execute(
@@ -182,32 +248,18 @@ async def main():
                 """,
                 message.from_user.id, message.from_user.username, message.from_user.first_name, message.from_user.last_name, admin_id
             )
-            if True:
-                # Создание клавиатуры для взаимодействия с ботом
-                last_step = await check_last_step(message.from_user.id)
-                # Создание клавиатуры для взаимодействия с ботом
-                keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-                if last_step != 0:
-                    # buttons = [
-                    #     ["Продолжить", "Портфолио"],
-                    #     ["Хелпер", "Контакты"]
-                    # ]
-                    buttons = [
-                        ["Продолжить", "Хелпер"]
-                    ]
-                else:
-                    # buttons = [
-                    #     ["Начать", "Портфолио"],
-                    #     ["Хелпер", "Контакты"]
-                    # ]
-                    buttons = [
-                        ["Начать", "Хелпер"]
-                    ]
-                for row in buttons:
-                    keyboard.row(*row)
-
-                # await message.answer("Добро пожаловать в нашего помощника по заполнению технических заданий!\n\n📝 Начать — Нажмите /GO, чтобы начать или продолжить\n\n🎨 Портфолио — Посмотрите наши проекты и работы /portfolio\n\n🤖 Хелпер — Получите помощь и советы по использованию бота /help\n\n📞 Контакты — Свяжитесь с нами для получения дополнительной информации /contacts", reply_markup=keyboard)
-                await message.answer("Добро пожаловать в создание дизайна Вашего будущего дома!\n\nПредставьте, что вы только что купили новый дом! Пора приступить к его обустройству.\n\n📝 Начать — Нажмите /GO, чтобы начать или продолжить\n\n🤖 Хелпер — Получите помощь и советы по использованию бота /help", reply_markup=keyboard)
+            last_step = await check_last_step(message.from_user.id)
+            keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            buttons = [["Продолжить", "Хелпер"]] if last_step != 0 else [["Начать", "Хелпер"]]
+            for row in buttons:
+                keyboard.row(*row)
+            await message.answer(
+                "Добро пожаловать в создание дизайна Вашего будущего дома!\n\n"
+                "Представьте, что вы только что купили новый дом! Пора приступить к его обустройству.\n\n"
+                "📝 Начать — Нажмите /GO, чтобы начать или продолжить\n\n"
+                "🤖 Хелпер — Получите помощь и советы по использованию бота /help",
+                reply_markup=keyboard
+            )
     
 
     
