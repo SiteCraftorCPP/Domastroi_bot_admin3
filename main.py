@@ -72,15 +72,18 @@ def get_admin_id():
     """Первый админ — для root в БД и обратной совместимости."""
     return get_admin_ids()[0]
 
-# Проверка подписки на канал (вызывается после инициализации bot)
-# SKIP_SUB_CHECK=1: показываем кнопки, при нажатии «Проверить» пропускаем без API (канал даёт "Member list is inaccessible")
+# Проверка подписки на канал (getChatMember)
+# Бот должен быть в канале: добавь бота как администратора с правом «Просмотр участников»
+# SKIP_SUB_CHECK=1 — отключить проверку (если "Member list is inaccessible")
+SUBSCRIBED_STATUSES = ('creator', 'administrator', 'member', 'restricted')
+
 async def is_user_in_channel(user_id):
     if SKIP_SUB_CHECK and db_pool:
         async with db_pool.acquire() as conn:
             exists = await conn.fetchval("SELECT 1 FROM users_designer WHERE id_telegram = $1", user_id)
             if exists:
                 return True
-        return False  # Покажем кнопки, при нажатии «Проверить» пропустим в check_sub
+        return False
     channels_to_try = []
     if CHANNEL_USERNAME:
         channels_to_try.append(f'@{CHANNEL_USERNAME.lstrip("@")}')
@@ -91,7 +94,9 @@ async def is_user_in_channel(user_id):
         try:
             member = await bot.get_chat_member(channel, user_id)
             status = getattr(member, 'status', str(type(member).__name__))
-            is_member = status not in ('left', 'kicked')
+            if isinstance(status, str):
+                status = status.lower()
+            is_member = status in SUBSCRIBED_STATUSES
             if not is_member:
                 logging.info(f"Подписка: user={user_id} status={status} channel={channel}")
             return is_member
