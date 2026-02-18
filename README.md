@@ -37,6 +37,8 @@ cp .env.example .env
 | BOT_API_TOKEN | Токен бота от @BotFather |
 | ADMIN_ID | Telegram ID владельца (куда приходят заявки) |
 | DB_USER, DB_PASSWORD, DB_NAME, DB_HOST, DB_PORT | Подключение к PostgreSQL |
+| CHANNEL_ID, CHANNEL_USERNAME | Канал для подписки (бот — админ) |
+| SKIP_SUB_CHECK | 1 — отключить проверку (если "Member list is inaccessible") |
 
 ## Запуск
 

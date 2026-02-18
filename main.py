@@ -33,6 +33,8 @@ BOT_API_TOKEN = os.getenv('BOT_API_TOKEN')
 ADMIN_ID = os.getenv('ADMIN_ID')
 CHANNEL_ID = os.getenv('CHANNEL_ID', '-1001915699118')  # Канал для обязательной подписки
 CHANNEL_USERNAME = os.getenv('CHANNEL_USERNAME', 'pobedonostseva_interior')
+# SKIP_SUB_CHECK=1 — отключить проверку подписки (если канал даёт "Member list is inaccessible")
+SKIP_SUB_CHECK = os.getenv('SKIP_SUB_CHECK', '0').strip().lower() in ('1', 'true', 'yes')
 
 if not all([DB_USER, DB_PASSWORD, DB_NAME, DB_HOST, BOT_API_TOKEN, ADMIN_ID]):
     raise ValueError("Не все переменные окружения загружены: BOT_API_TOKEN, ADMIN_ID, DB_*")
@@ -71,8 +73,10 @@ def get_admin_id():
     return get_admin_ids()[0]
 
 # Проверка подписки на канал (вызывается после инициализации bot)
-# ВАЖНО: бот должен быть администратором канала с правом "Просмотр участников"
+# ВАЖНО: бот должен быть администратором канала. Для каналов (broadcast) часто "Member list is inaccessible" — тогда SKIP_SUB_CHECK=1
 async def is_user_in_channel(user_id):
+    if SKIP_SUB_CHECK:
+        return True
     channels_to_try = []
     if CHANNEL_USERNAME:
         channels_to_try.append(f'@{CHANNEL_USERNAME.lstrip("@")}')
