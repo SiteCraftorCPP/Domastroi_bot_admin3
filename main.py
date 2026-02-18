@@ -73,10 +73,14 @@ def get_admin_id():
     return get_admin_ids()[0]
 
 # Проверка подписки на канал (вызывается после инициализации bot)
-# ВАЖНО: бот должен быть администратором канала. Для каналов (broadcast) часто "Member list is inaccessible" — тогда SKIP_SUB_CHECK=1
+# SKIP_SUB_CHECK=1: показываем кнопки, при нажатии «Проверить» пропускаем без API (канал даёт "Member list is inaccessible")
 async def is_user_in_channel(user_id):
-    if SKIP_SUB_CHECK:
-        return True
+    if SKIP_SUB_CHECK and db_pool:
+        async with db_pool.acquire() as conn:
+            exists = await conn.fetchval("SELECT 1 FROM users_designer WHERE id_telegram = $1", user_id)
+            if exists:
+                return True
+        return False  # Покажем кнопки, при нажатии «Проверить» пропустим в check_sub
     channels_to_try = []
     if CHANNEL_USERNAME:
         channels_to_try.append(f'@{CHANNEL_USERNAME.lstrip("@")}')
@@ -221,7 +225,8 @@ async def main():
     # Проверка подписки — callback "Проверить подписку"
     @dp.callback_query_handler(lambda c: c.data == "check_sub")
     async def check_sub_callback(call: types.CallbackQuery):
-        if await is_user_in_channel(call.from_user.id):
+        passed = SKIP_SUB_CHECK or await is_user_in_channel(call.from_user.id)
+        if passed:
             await call.message.delete()
             admin_id = get_admin_id()
             async with db_pool.acquire() as connection:
@@ -1296,14 +1301,17 @@ async def main():
     async def cmd_check_sub_debug(message: types.Message):
         if message.from_user.id not in get_admin_ids():
             return
+        if SKIP_SUB_CHECK:
+            await message.answer("SKIP_SUB_CHECK=1 — проверка отключена, кнопки работают по честному слову.")
+            return
         uid = message.from_user.id
         channel = f'@{CHANNEL_USERNAME.lstrip("@")}'
         try:
             member = await bot.get_chat_member(channel, uid)
             status = getattr(member, 'status', '?')
-            await message.answer(f"Подписка: status={status}, channel={channel}\nБот должен быть админом канала.")
+            await message.answer(f"Подписка: status={status}, channel={channel}")
         except Exception as e:
-            await message.answer(f"Ошибка: {e}\n\nБот добавлен в канал как администратор с правом «Просмотр участников»?")
+            await message.answer(f"Ошибка: {e}\n\nДобавь SKIP_SUB_CHECK=1 в .env — тогда кнопки будут работать без проверки API.")
 
     # Команда /manual
     @dp.message_handler(commands=['manual'])
