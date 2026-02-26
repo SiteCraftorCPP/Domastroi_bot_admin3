@@ -467,8 +467,8 @@
             "options": [
                 { "text": "№1 Распашные", "image": "https://wschudo.ru/domastroi/images/door/kakie_dveri_hotite_ispolzovat_raspashnye.jpg"},
                 { "text": "№2 Раздвижные", "image": "https://wschudo.ru/domastroi/images/door/kakie_dveri_hotite_ispolzovat_razdvizhnye.jpg"},
-                { "text": "№4 Рото-двери", "image": "https://wschudo.ru/domastroi/images/door/kakie_dveri_hotite_ispolzovat_rotodveri.jpg"},
-                { "text": "№5 Скрытого монтажа", "image": "https://wschudo.ru/domastroi/images/door/kakie_dveri_hotite_ispolzovat_skrytogo_montazha.jpg"},
+                { "text": "№3 Рото-двери", "image": "https://wschudo.ru/domastroi/images/door/kakie_dveri_hotite_ispolzovat_rotodveri.jpg"},
+                { "text": "№4 Скрытого монтажа", "image": "https://wschudo.ru/domastroi/images/door/kakie_dveri_hotite_ispolzovat_skrytogo_montazha.jpg"},
                 { "text": "Не принципиально"}
             ]
         },
@@ -550,7 +550,17 @@
         {
             "text": "ПРИХОЖАЯ ЗОНА: Мебель и оборудование. Напишите список мебели, какую вы хотели бы видеть в этом помещении",
             "key": "question_55",
-            "options": []
+            "options": [
+                { "text": "Закрытый шкаф распашной" },
+                { "text": "Закрытый шкаф-купе" },
+                { "text": "Открытые вешалки" },
+                { "text": "Обувница" },
+                { "text": "Пуф" },
+                { "text": "Обувница-пуф" },
+                { "text": "Гардеробная-кладовая" },
+                { "text": "Консоль" },
+                { "text": "Диван / Кресла" }
+            ]
         },
         {
             "text": "ПРИХОЖАЯ ЗОНА: Мебель и оборудование",
