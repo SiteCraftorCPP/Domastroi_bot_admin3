@@ -1486,54 +1486,54 @@
             "text": "Какой цвет вы бы ОЧЕНЬ хотели видеть в интерьере:",
             "key": "question_136",
             "options": [
-                { "text": "№1", "image": "https://wschudo.ru/domastroi/images/colors_no/1.jpg" },
-                { "text": "№2", "image": "https://wschudo.ru/domastroi/images/colors_no/2.jpg" },
-                { "text": "№3", "image": "https://wschudo.ru/domastroi/images/colors_no/3.jpg" },
-                { "text": "№4", "image": "https://wschudo.ru/domastroi/images/colors_no/4.jpg" },
-                { "text": "№5", "image": "https://wschudo.ru/domastroi/images/colors_no/5.jpg" },
-                { "text": "№6", "image": "https://wschudo.ru/domastroi/images/colors_no/6.jpg" },
-                { "text": "№7", "image": "https://wschudo.ru/domastroi/images/colors_no/7.jpg" },
-                { "text": "№8", "image": "https://wschudo.ru/domastroi/images/colors_no/8.jpg" },
-                { "text": "№9", "image": "https://wschudo.ru/domastroi/images/colors_no/9.jpg" },
-                { "text": "№10", "image": "https://wschudo.ru/domastroi/images/colors_no/10.jpg"}
+                { "text": "№1. Фиолетовый / Сиреневый", "image": "https://wschudo.ru/domastroi/images/colors_no/1.jpg" },
+                { "text": "№2. Шоколадный", "image": "https://wschudo.ru/domastroi/images/colors_no/2.jpg" },
+                { "text": "№3. Синий", "image": "https://wschudo.ru/domastroi/images/colors_no/3.jpg" },
+                { "text": "№4. Охра", "image": "https://wschudo.ru/domastroi/images/colors_no/4.jpg" },
+                { "text": "№5. Винный", "image": "https://wschudo.ru/domastroi/images/colors_no/5.jpg" },
+                { "text": "№6. Зеленый", "image": "https://wschudo.ru/domastroi/images/colors_no/6.jpg" },
+                { "text": "№7. Желтый", "image": "https://wschudo.ru/domastroi/images/colors_no/7.jpg" },
+                { "text": "№8. Черный", "image": "https://wschudo.ru/domastroi/images/colors_no/8.jpg" },
+                { "text": "№9. Бежевый", "image": "https://wschudo.ru/domastroi/images/colors_no/9.jpg" },
+                { "text": "№10. Серый", "image": "https://wschudo.ru/domastroi/images/colors_no/10.jpg"}
             ]
         },
         {
             "text": "Какие цвета НЕ использовать в интерьере:",
             "key": "question_136",
             "options": [
-                { "text": "№1", "image": "https://wschudo.ru/domastroi/images/colors_no/1.jpg" },
-                { "text": "№2", "image": "https://wschudo.ru/domastroi/images/colors_no/2.jpg" },
-                { "text": "№3", "image": "https://wschudo.ru/domastroi/images/colors_no/3.jpg" },
-                { "text": "№4", "image": "https://wschudo.ru/domastroi/images/colors_no/4.jpg" },
-                { "text": "№5", "image": "https://wschudo.ru/domastroi/images/colors_no/5.jpg" },
-                { "text": "№6", "image": "https://wschudo.ru/domastroi/images/colors_no/6.jpg" },
-                { "text": "№7", "image": "https://wschudo.ru/domastroi/images/colors_no/7.jpg" },
-                { "text": "№8", "image": "https://wschudo.ru/domastroi/images/colors_no/8.jpg" },
-                { "text": "№9", "image": "https://wschudo.ru/domastroi/images/colors_no/9.jpg" },
-                { "text": "№10", "image": "https://wschudo.ru/domastroi/images/colors_no/10.jpg"}
+                { "text": "№1. Фиолетовый / Сиреневый", "image": "https://wschudo.ru/domastroi/images/colors_no/1.jpg" },
+                { "text": "№2. Шоколадный", "image": "https://wschudo.ru/domastroi/images/colors_no/2.jpg" },
+                { "text": "№3. Синий", "image": "https://wschudo.ru/domastroi/images/colors_no/3.jpg" },
+                { "text": "№4. Охра", "image": "https://wschudo.ru/domastroi/images/colors_no/4.jpg" },
+                { "text": "№5. Винный", "image": "https://wschudo.ru/domastroi/images/colors_no/5.jpg" },
+                { "text": "№6. Зеленый", "image": "https://wschudo.ru/domastroi/images/colors_no/6.jpg" },
+                { "text": "№7. Желтый", "image": "https://wschudo.ru/domastroi/images/colors_no/7.jpg" },
+                { "text": "№8. Черный", "image": "https://wschudo.ru/domastroi/images/colors_no/8.jpg" },
+                { "text": "№9. Бежевый", "image": "https://wschudo.ru/domastroi/images/colors_no/9.jpg" },
+                { "text": "№10. Серый", "image": "https://wschudo.ru/domastroi/images/colors_no/10.jpg"}
             ]
         },
         {
             "text": "Какой металл ОЧЕНЬ хотелось бы видеть в интерьере:",
             "key": "question_130",
             "options": [
-                { "text": "№1", "image": "https://wschudo.ru/domastroi/images/metall/metall_1.jpg" },
-                { "text": "№2", "image": "https://wschudo.ru/domastroi/images/metall/metall_2.jpg" },
-                { "text": "№3", "image": "https://wschudo.ru/domastroi/images/metall/metall_3.jpg" },
-                { "text": "№4", "image": "https://wschudo.ru/domastroi/images/metall/metall_4.jpg" },
-                { "text": "№5", "image": "https://wschudo.ru/domastroi/images/metall/metall_5.jpg" }
+                { "text": "№1. Медь, никель, оружейная сталь", "image": "https://wschudo.ru/domastroi/images/metall/metall_1.jpg" },
+                { "text": "№2. Золото", "image": "https://wschudo.ru/domastroi/images/metall/metall_2.jpg" },
+                { "text": "№3. Черный", "image": "https://wschudo.ru/domastroi/images/metall/metall_3.jpg" },
+                { "text": "№4. Хром", "image": "https://wschudo.ru/domastroi/images/metall/metall_4.jpg" },
+                { "text": "№5. Белый", "image": "https://wschudo.ru/domastroi/images/metall/metall_5.jpg" }
             ]
         },
         {
             "text": "Какой металл НЕ хотелось бы видеть в интерьере:",
             "key": "question_131",
             "options": [
-                { "text": "№1", "image": "https://wschudo.ru/domastroi/images/metall/metall_1.jpg" },
-                { "text": "№2", "image": "https://wschudo.ru/domastroi/images/metall/metall_2.jpg" },
-                { "text": "№3", "image": "https://wschudo.ru/domastroi/images/metall/metall_3.jpg" },
-                { "text": "№4", "image": "https://wschudo.ru/domastroi/images/metall/metall_4.jpg" },
-                { "text": "№5", "image": "https://wschudo.ru/domastroi/images/metall/metall_5.jpg" }
+                { "text": "№1. Медь, никель, оружейная сталь", "image": "https://wschudo.ru/domastroi/images/metall/metall_1.jpg" },
+                { "text": "№2. Золото", "image": "https://wschudo.ru/domastroi/images/metall/metall_2.jpg" },
+                { "text": "№3. Черный", "image": "https://wschudo.ru/domastroi/images/metall/metall_3.jpg" },
+                { "text": "№4. Хром", "image": "https://wschudo.ru/domastroi/images/metall/metall_4.jpg" },
+                { "text": "№5. Белый", "image": "https://wschudo.ru/domastroi/images/metall/metall_5.jpg" }
             ]
         },
         {
