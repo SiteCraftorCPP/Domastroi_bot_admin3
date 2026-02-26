@@ -739,8 +739,7 @@ async def main():
 
         # Проверка наличия изображений и их отправка в виде галереи
         if 'options' in question_info and any('image' in option for option in question_info['options']):
-            caption_text = f"Изображения к вопросу {current_index + 1}"
-            # caption_text = f"Изображения к вопросу {current_index + 1}: {question_info['text']}"
+            caption_text = question_info['text']
             media_group = [types.InputMediaPhoto(option['image'], caption=caption_text if i == 0 else None) for i, option in enumerate(question_info['options']) if 'image' in option]
             await message.answer_media_group(media_group)
 
@@ -1004,8 +1003,7 @@ async def main():
 
         try:
             if update_images and 'options' in question_info and any('image' in option for option in question_info['options']):
-                caption_text = f"Изображения к вопросу {current_index + 1}"
-                # caption_text = f"Изображения к вопросу {current_index + 1}: {new_text}"
+                caption_text = question_info['text']
                 media_group = [
                     types.InputMediaPhoto(option['image'], caption=caption_text if i == 0 else None)
                     for i, option in enumerate(question_info['options']) if 'image' in option
