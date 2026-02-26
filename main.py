@@ -701,8 +701,22 @@ async def main():
     # Упрощённый код для ask_question
     async def ask_question(message: types.Message, state: FSMContext):
         user_data = await state.get_data()
+        questions = user_data['questions']
         current_index = user_data['current_question_index']
-        question_info = user_data['questions'][current_index]
+
+        # Пропускаем вопросы, помеченные как skip
+        while current_index < len(questions) and questions[current_index].get("skip"):
+            current_index += 1
+
+        if current_index >= len(questions):
+            # Если дошли до конца списка, завершаем опрос
+            await finish_questionnaire(message, state)
+            return
+
+        user_data['current_question_index'] = current_index
+        await state.update_data(user_data)
+
+        question_info = questions[current_index]
         custom_answers = user_data.get('custom_answers', {})
         answers = user_data.get('answers', {})
         selected_answers = answers.get(current_index, [])
@@ -713,7 +727,15 @@ async def main():
         # except Exception as e:
         #     print(f"Не удалось удалить сообщение: {e}")
 
-        keyboard = await create_keyboard(current_index, selected_answers, user_data['questions'], custom_answers)
+        # Специальный случай: вопрос "Площадь помещения" — сразу ждём ввод числа без нажатия "Свой вариант"
+        question_key = question_info.get("key")
+        if question_key == "question_1":
+            question_message = await message.answer(f"{question_info['text']}\n\nВведите число (м²):")
+            asyncio.create_task(start_inactivity_timer(message, state, question_message))
+            await Questionnaire.custom_answer.set()
+            return
+
+        keyboard = await create_keyboard(current_index, selected_answers, questions, custom_answers)
 
         # Проверка наличия изображений и их отправка в виде галереи
         if 'options' in question_info and any('image' in option for option in question_info['options']):
@@ -849,12 +871,21 @@ async def main():
 
             if direction == "forward" and current_index < len(questions) - 1:
                 current_index += 1
+                # пропускаем вопросы, помеченные как skip
+                while current_index < len(questions) and questions[current_index].get("skip"):
+                    current_index += 1
                 update_images = True
             elif direction == "back" and current_index > 0:
                 current_index -= 1
+                # пропускаем вопросы, помеченные как skip
+                while current_index >= 0 and questions[current_index].get("skip"):
+                    current_index -= 1
                 update_images = True
             elif direction == "skip" and current_index < len(questions) - 1:
                 current_index += 1  # Переход к следующему вопросу при нажатии "Пропустить вопрос"
+                # пропускаем вопросы, помеченные как skip
+                while current_index < len(questions) and questions[current_index].get("skip"):
+                    current_index += 1
                 update_images = True
             elif direction == "end":
                 await finish_questionnaire(callback_query, state)
@@ -1165,6 +1196,10 @@ async def main():
         answers_dict = {(answer['question_step'], answer['answer_text']): answer for answer in user_answers}
 
         for step, question_info in questions_dict.items():
+            # Пропускаем служебные блоки (brakepoint) и вопросы, помеченные как skip
+            if question_info.get('key') == 'brakepoint' or question_info.get('skip'):
+                continue
+
             question_text = question_info['text']
             doc.add_heading(f"Вопрос {step + 1}: {question_text}", level=2)
             
