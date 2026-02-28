@@ -1193,13 +1193,15 @@ async def main():
         # Преобразуем ответы в словарь для быстрого доступа
         answers_dict = {(answer['question_step'], answer['answer_text']): answer for answer in user_answers}
 
+        report_question_num = 0  # сквозная нумерация только для вопросов, попадающих в отчёт
         for step, question_info in questions_dict.items():
             # Пропускаем служебные блоки (brakepoint) и вопросы, помеченные как skip
             if question_info.get('key') == 'brakepoint' or question_info.get('skip'):
                 continue
 
+            report_question_num += 1
             question_text = question_info['text']
-            doc.add_heading(f"Вопрос {step + 1}: {question_text}", level=2)
+            doc.add_heading(f"Вопрос {report_question_num}: {question_text}", level=2)
             
             # Проверяем ответы на текущий вопрос
             question_options = question_info.get('options', [])
