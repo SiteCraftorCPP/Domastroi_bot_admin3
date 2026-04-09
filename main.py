@@ -1211,9 +1211,7 @@ async def main():
                 answer_text = option['text']
                 answer_key = (step, answer_text)
                 if answer_key in answers_dict:
-                    answer = answers_dict[answer_key]
-                    answer_type = '(стандартный)' if answer['answer_type'] == 'button' else '(пользовательский)'
-                    doc.add_paragraph(f"Ответ: {answer_text} {answer_type}")
+                    doc.add_paragraph(f"Ответ: {answer_text}")
                     has_standard_answer = True
 
                     # Включаем изображение, если это ответ с изображением.
@@ -1235,7 +1233,7 @@ async def main():
             # Проверяем пользовательский ответ на текущий вопрос
             custom_answer = next((a for a in user_answers if a['question_step'] == step and a['answer_type'] == 'custom'), None)
             if custom_answer:
-                doc.add_paragraph(f"Ответ: {custom_answer['answer_text']} (пользовательский)")
+                doc.add_paragraph(f"Ответ: {custom_answer['answer_text']}")
 
             # Если ответов на текущий вопрос нет
             if not has_standard_answer and not custom_answer:
