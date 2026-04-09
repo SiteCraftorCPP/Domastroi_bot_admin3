@@ -1225,7 +1225,10 @@ async def main():
                             image_stream = BytesIO(response.content)
                             paragraph = doc.add_paragraph()
                             run = paragraph.add_run()
-                            run.add_picture(image_stream, width=Inches(1), height=Inches(1))
+                            try:
+                                run.add_picture(image_stream, width=Inches(1), height=Inches(1))
+                            except Exception as image_insert_error:
+                                logging.warning(f"Не удалось вставить изображение в отчёт: {option['image']} ({image_insert_error})")
                         except requests.RequestException as image_error:
                             logging.warning(f"Не удалось загрузить изображение для отчёта: {option['image']} ({image_error})")
             
