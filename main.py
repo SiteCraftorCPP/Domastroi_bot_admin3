@@ -1216,13 +1216,18 @@ async def main():
                     doc.add_paragraph(f"Ответ: {answer_text} {answer_type}")
                     has_standard_answer = True
 
-                    # Включаем изображение, если это ответ с изображением
+                    # Включаем изображение, если это ответ с изображением.
+                    # Ошибка загрузки картинки не должна ломать формирование всего отчёта.
                     if 'image' in option:
-                        response = requests.get(option['image'])
-                        image_stream = BytesIO(response.content)
-                        paragraph = doc.add_paragraph()
-                        run = paragraph.add_run()
-                        run.add_picture(image_stream, width=Inches(1), height=Inches(1))
+                        try:
+                            response = requests.get(option['image'], timeout=10)
+                            response.raise_for_status()
+                            image_stream = BytesIO(response.content)
+                            paragraph = doc.add_paragraph()
+                            run = paragraph.add_run()
+                            run.add_picture(image_stream, width=Inches(1), height=Inches(1))
+                        except requests.RequestException as image_error:
+                            logging.warning(f"Не удалось загрузить изображение для отчёта: {option['image']} ({image_error})")
             
             # Проверяем пользовательский ответ на текущий вопрос
             custom_answer = next((a for a in user_answers if a['question_step'] == step and a['answer_type'] == 'custom'), None)
