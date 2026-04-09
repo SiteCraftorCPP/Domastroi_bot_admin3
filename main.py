@@ -1070,16 +1070,26 @@ async def main():
         
         await state.finish()
         
-        # Создаем и отправляем документ всем администраторам
+        # Создаем и отправляем отчет всем администраторам.
+        # Если docx не собрался по любой причине, отправляем fallback .txt, чтобы заявка не терялась.
         request_id = await get_request_id(user_id)
-        file_path = await create_word_document(user_id, request_id)
+        report_path = None
+        report_type = "docx"
+        try:
+            report_path = await create_word_document(user_id, request_id)
+        except Exception as report_error:
+            logging.exception(f"Не удалось сформировать DOCX-отчет для user_id={user_id}, request_id={request_id}: {report_error}")
+            report_path = await create_text_report(user_id, request_id)
+            report_type = "txt"
         admin_ids = get_admin_ids()
         
         admin_message = f"Уважаемый администратор, поступила новая заявка от пользователя @{callback_query.from_user.username} {callback_query.from_user.first_name} {callback_query.from_user.last_name}"
         if not callback_query.from_user.username:
             admin_message = f"Уважаемый администратор, поступила новая заявка от пользователя {callback_query.from_user.first_name} {callback_query.from_user.last_name}"
+        if report_type == "txt":
+            admin_message += "\n\n⚠️ DOCX не сформирован автоматически, отправлен текстовый fallback-отчет."
         
-        with open(file_path, 'rb') as doc:
+        with open(report_path, 'rb') as doc:
             for aid in admin_ids:
                 await bot.send_message(aid, admin_message)
                 doc.seek(0)
@@ -1253,6 +1263,55 @@ async def main():
         
         doc.save(file_path)
         
+        return file_path
+
+    async def create_text_report(user_id, request_id):
+        async with db_pool.acquire() as connection:
+            data_question = await connection.fetchrow("""
+                SELECT * FROM data_questions
+                WHERE id_telegram = $1 AND id = $2
+            """, user_id, request_id)
+
+            user_answers = await connection.fetch("""
+                SELECT * FROM user_answers
+                WHERE id_telegram = $1 AND request_id = $2
+                ORDER BY question_step, id
+            """, user_id, request_id)
+
+        questions = load_questions()
+        questions_dict = {i: q for i, q in enumerate(questions)}
+
+        lines = []
+        lines.append("Ответы пользователя")
+        lines.append("")
+
+        report_question_num = 0
+        for step, question_info in questions_dict.items():
+            if question_info.get('key') == 'brakepoint' or question_info.get('skip'):
+                continue
+
+            step_answers = [a for a in user_answers if a['question_step'] == step]
+            if not step_answers:
+                continue
+
+            report_question_num += 1
+            lines.append(f"Вопрос {report_question_num}: {question_info['text']}")
+            for answer in step_answers:
+                lines.append(f"Ответ: {answer['answer_text']}")
+            lines.append("")
+
+        folder_path = os.path.join(BASE_DIR, "data_questions")
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        name_part = data_question.get('tg_login') or f"{data_question.get('tg_firstname') or ''} {data_question.get('tg_lastname') or ''}".strip() or 'user'
+        safe_name = "".join(c for c in name_part if c not in r'\/:*?"<>|')[:50]
+        file_name = f"{safe_name} {user_id} {request_id}_fallback.txt"
+        file_path = os.path.join(folder_path, file_name)
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+
         return file_path
 
     # Прерывание процесса
