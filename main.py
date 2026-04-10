@@ -65,6 +65,21 @@ def get_requests_proxies():
         return None
     return {'http': TELEGRAM_PROXY_URL, 'https': TELEGRAM_PROXY_URL}
 
+
+def require_proxy_dependencies_if_socks():
+    """aiogram для SOCKS тянет aiohttp_socks — без пакета бот падает с неочевидной ошибкой."""
+    if not TELEGRAM_PROXY_URL:
+        return
+    if TELEGRAM_PROXY_URL.startswith(('socks5://', 'socks4://')):
+        try:
+            import aiohttp_socks  # noqa: F401
+        except ImportError as e:
+            raise RuntimeError(
+                'Для TELEGRAM_PROXY (SOCKS) нужны пакеты: '
+                './venv/bin/pip install -r requirements.txt'
+            ) from e
+
+
 if not all([DB_USER, DB_PASSWORD, DB_NAME, DB_HOST, BOT_API_TOKEN, ADMIN_ID]):
     raise ValueError("Не все переменные окружения загружены: BOT_API_TOKEN, ADMIN_ID, DB_*")
 
@@ -173,6 +188,7 @@ class ManualDocumentCreation(StatesGroup):
 # Основная функция
 async def main():
     global db_pool
+    require_proxy_dependencies_if_socks()
     db_pool = await create_db_pool()
 
     # Создание экземпляра бота и диспетчера
