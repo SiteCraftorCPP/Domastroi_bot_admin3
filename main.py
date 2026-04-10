@@ -2,6 +2,7 @@ import asyncio
 import os
 import logging
 from datetime import datetime
+from urllib.parse import quote
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
@@ -35,6 +36,34 @@ CHANNEL_ID = os.getenv('CHANNEL_ID', '-1001915699118')  # Канал для об
 CHANNEL_USERNAME = os.getenv('CHANNEL_USERNAME', 'pobedonostseva_interior')
 # SKIP_SUB_CHECK=1 — отключить проверку подписки (если канал даёт "Member list is inaccessible")
 SKIP_SUB_CHECK = os.getenv('SKIP_SUB_CHECK', '0').strip().lower() in ('1', 'true', 'yes')
+
+# Прокси для Telegram API (локальное тестирование). Пусто = без прокси.
+# Форматы: socks5://user:pass@host:port, http://..., либо host:port:user:pass
+TELEGRAM_PROXY_RAW = os.getenv('TELEGRAM_PROXY', '').strip()
+
+
+def normalize_telegram_proxy(raw: str):
+    """Нормализовать прокси для Telegram / requests (как в proxy TELEGRAM.txt)."""
+    raw = (raw or '').strip()
+    if not raw:
+        return None
+    if '://' in raw:
+        return raw
+    parts = raw.split(':')
+    if len(parts) == 4:
+        host, port, user, password = parts
+        return f'socks5://{quote(user, safe="")}:{quote(password, safe="")}@{host}:{port}'
+    return raw
+
+
+TELEGRAM_PROXY_URL = normalize_telegram_proxy(TELEGRAM_PROXY_RAW)
+
+
+def get_requests_proxies():
+    """Прокси для requests (скачивание картинок в отчёт)."""
+    if not TELEGRAM_PROXY_URL:
+        return None
+    return {'http': TELEGRAM_PROXY_URL, 'https': TELEGRAM_PROXY_URL}
 
 if not all([DB_USER, DB_PASSWORD, DB_NAME, DB_HOST, BOT_API_TOKEN, ADMIN_ID]):
     raise ValueError("Не все переменные окружения загружены: BOT_API_TOKEN, ADMIN_ID, DB_*")
@@ -148,7 +177,11 @@ async def main():
 
     # Создание экземпляра бота и диспетчера
     global bot
-    bot = Bot(token=BOT_API_TOKEN)
+    bot_kwargs = {'token': BOT_API_TOKEN}
+    if TELEGRAM_PROXY_URL:
+        bot_kwargs['proxy'] = TELEGRAM_PROXY_URL
+        logging.info('Используется TELEGRAM_PROXY для Bot API')
+    bot = Bot(**bot_kwargs)
     storage = MemoryStorage()
     dp = Dispatcher(bot, storage=storage)
 
@@ -1228,7 +1261,9 @@ async def main():
                     # Ошибка загрузки картинки не должна ломать формирование всего отчёта.
                     if 'image' in option:
                         try:
-                            response = requests.get(option['image'], timeout=10)
+                            response = requests.get(
+                                option['image'], timeout=10, proxies=get_requests_proxies()
+                            )
                             response.raise_for_status()
                             image_stream = BytesIO(response.content)
                             paragraph = doc.add_paragraph()
