@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.utils.exceptions import MessageNotModified, BotKicked
+from aiogram.utils.exceptions import MessageNotModified
 from aiogram.dispatcher.filters import Text
 from aiogram.utils.executor import start_polling
 from dotenv import load_dotenv
@@ -32,9 +32,10 @@ DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT', '5432')
 BOT_API_TOKEN = os.getenv('BOT_API_TOKEN')
 ADMIN_ID = os.getenv('ADMIN_ID')
-CHANNEL_ID = os.getenv('CHANNEL_ID', '-1001915699118')  # Канал для обязательной подписки
+# Опционально: канал для команды /check_sub_debug (доступ к боту не зависит от подписки)
+CHANNEL_ID = os.getenv('CHANNEL_ID', '-1001915699118')
 CHANNEL_USERNAME = os.getenv('CHANNEL_USERNAME', 'pobedonostseva_interior')
-# SKIP_SUB_CHECK=1 — отключить проверку подписки (если канал даёт "Member list is inaccessible")
+# Для отладки: если getChatMember в канале недоступен API, временно включают «мягкий» режим
 SKIP_SUB_CHECK = os.getenv('SKIP_SUB_CHECK', '0').strip().lower() in ('1', 'true', 'yes')
 
 # Прокси для Telegram API (локальное тестирование). Пусто = без прокси.
@@ -116,58 +117,6 @@ def get_admin_id():
     """Первый админ — для root в БД и обратной совместимости."""
     return get_admin_ids()[0]
 
-# Проверка подписки на канал (getChatMember)
-# Бот должен быть в канале: добавь бота как администратора с правом «Просмотр участников»
-# SKIP_SUB_CHECK=1 — отключить проверку (если "Member list is inaccessible")
-SUBSCRIBED_STATUSES = ('creator', 'administrator', 'member', 'restricted')
-
-async def is_user_in_channel(user_id):
-    if SKIP_SUB_CHECK and db_pool:
-        async with db_pool.acquire() as conn:
-            exists = await conn.fetchval("SELECT 1 FROM users_designer WHERE id_telegram = $1", user_id)
-            if exists:
-                return True
-        return False
-    channels_to_try = []
-    if CHANNEL_USERNAME:
-        channels_to_try.append(f'@{CHANNEL_USERNAME.lstrip("@")}')
-    if CHANNEL_ID and CHANNEL_ID.lstrip('-').isdigit():
-        channels_to_try.append(int(CHANNEL_ID))
-
-    for channel in channels_to_try:
-        try:
-            member = await bot.get_chat_member(channel, user_id)
-            status = getattr(member, 'status', str(type(member).__name__))
-            if isinstance(status, str):
-                status = status.lower()
-            is_member = status in SUBSCRIBED_STATUSES
-            if not is_member:
-                logging.info(f"Подписка: user={user_id} status={status} channel={channel}")
-            return is_member
-        except BotKicked:
-            logging.error(f"Бот удалён из канала {channel}")
-            return False
-        except Exception as e:
-            logging.warning(f"Проверка подписки channel={channel}: {e}")
-            continue
-    logging.error(f"Не удалось проверить подписку user={user_id}")
-    return False
-
-async def check_subscription(user_id):
-    if await is_user_in_channel(user_id):
-        return {'status': True}
-    return {
-        'status': False,
-        'message': f"Для использования бота необходимо подписаться на канал: t.me/{CHANNEL_USERNAME}"
-    }
-
-def get_subscribe_keyboard():
-    channel_link = f"https://t.me/{CHANNEL_USERNAME.lstrip('@')}"
-    kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton("➡️ Подписаться на канал", url=channel_link))
-    kb.add(types.InlineKeyboardButton("✅ Проверить подписку", callback_data="check_sub"))
-    return kb
-
 
 # Определение состояний FSM
 class Form(StatesGroup):
@@ -236,96 +185,54 @@ async def main():
     @dp.message_handler(commands=['menu'])
     @dp.message_handler(lambda message: message.text.lower() == 'меню')
     async def show_menu(message: types.Message):
-
-        subscription_status = await check_subscription(message.from_user.id)
-
-        if subscription_status['status']:
-
-            last_step = await check_last_step(message.from_user.id)
-            # Создание клавиатуры для взаимодействия с ботом
-            keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            if last_step != 0:
-                # buttons = [
-                #     ["Продолжить", "Портфолио"],
-                #     ["Хелпер", "Контакты"]
-                # ]
-                buttons = [
-                    ["Продолжить", "Хелпер"]
-                ]
-            else:
-                # buttons = [
-                #     ["Начать", "Портфолио"],
-                #     ["Хелпер", "Контакты"]
-                # ]
-                buttons = [
-                    ["Начать", "Хелпер"]
-                ]
-            for row in buttons:
-                keyboard.row(*row)
-
-            await message.answer("Выберите необходимый пункт меню", reply_markup=keyboard)
-
+        last_step = await check_last_step(message.from_user.id)
+        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        if last_step != 0:
+            buttons = [
+                ["Продолжить", "Хелпер"]
+            ]
         else:
-            await message.answer(
-                "👋 Для доступа к боту подпишитесь на канал.\n\n"
-                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
-                "2️⃣ Подпишитесь\n"
-                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
-                reply_markup=get_subscribe_keyboard()
-            )
+            buttons = [
+                ["Начать", "Хелпер"]
+            ]
+        for row in buttons:
+            keyboard.row(*row)
+
+        await message.answer("Выберите необходимый пункт меню", reply_markup=keyboard)
 
     # END Меню по команде menu
 
-    # Проверка подписки — callback "Проверить подписку"
+    # Старый callback «Проверить подписку»: оставлен для уже отправленных сообщений
     @dp.callback_query_handler(lambda c: c.data == "check_sub")
     async def check_sub_callback(call: types.CallbackQuery):
-        passed = SKIP_SUB_CHECK or await is_user_in_channel(call.from_user.id)
-        if passed:
-            await call.message.delete()
-            admin_id = get_admin_id()
-            async with db_pool.acquire() as connection:
-                await connection.execute(
-                    """
-                    INSERT INTO users_designer (id_telegram, tg_login, tg_firstname, tg_lastname, status, phone, last_step, subscribe, root)
-                    VALUES ($1, $2, $3, $4, 0, NULL, 0, 0, $5)
-                    ON CONFLICT (id_telegram) DO NOTHING
-                    """,
-                    call.from_user.id, call.from_user.username, call.from_user.first_name, call.from_user.last_name, admin_id
-                )
-            last_step = await check_last_step(call.from_user.id)
-            keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            buttons = [["Продолжить", "Хелпер"]] if last_step != 0 else [["Начать", "Хелпер"]]
-            for row in buttons:
-                keyboard.row(*row)
-            await call.message.answer(
-                "Добро пожаловать в создание дизайна Вашего будущего дома!\n\n"
-                "Представьте, что вы только что купили новый дом! Пора приступить к его обустройству.\n\n"
-                "📝 Начать — Нажмите /GO, чтобы начать или продолжить\n\n"
-                "🤖 Хелпер — Получите помощь и советы по использованию бота /help",
-                reply_markup=keyboard
+        await call.message.delete()
+        admin_id = get_admin_id()
+        async with db_pool.acquire() as connection:
+            await connection.execute(
+                """
+                INSERT INTO users_designer (id_telegram, tg_login, tg_firstname, tg_lastname, status, phone, last_step, subscribe, root)
+                VALUES ($1, $2, $3, $4, 0, NULL, 0, 0, $5)
+                ON CONFLICT (id_telegram) DO NOTHING
+                """,
+                call.from_user.id, call.from_user.username, call.from_user.first_name, call.from_user.last_name, admin_id
             )
-            await call.answer("Спасибо за подписку! ✅")
-        else:
-            await call.answer(
-                "Вы ещё не подписаны.\n\nНажмите «Подписаться на канал», подпишитесь, затем снова «Проверить подписку».",
-                show_alert=True
-            )
+        last_step = await check_last_step(call.from_user.id)
+        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        buttons = [["Продолжить", "Хелпер"]] if last_step != 0 else [["Начать", "Хелпер"]]
+        for row in buttons:
+            keyboard.row(*row)
+        await call.message.answer(
+            "Добро пожаловать в создание дизайна Вашего будущего дома!\n\n"
+            "Представьте, что вы только что купили новый дом! Пора приступить к его обустройству.\n\n"
+            "📝 Начать — Нажмите /GO, чтобы начать или продолжить\n\n"
+            "🤖 Хелпер — Получите помощь и советы по использованию бота /help",
+            reply_markup=keyboard
+        )
+        await call.answer("Готово! ✅")
 
     # Пример обработчика команды /start
     @dp.message_handler(commands='start')
     async def cmd_start(message: types.Message):
-        # Сначала проверяем подписку на канал
-        if not await is_user_in_channel(message.from_user.id):
-            await message.answer(
-                "👋 Добро пожаловать!\n\n"
-                "Для доступа к боту необходимо подписаться на наш канал.\n\n"
-                "1️⃣ Нажмите кнопку «Подписаться на канал» — откроется канал\n"
-                "2️⃣ Подпишитесь на канал\n"
-                "3️⃣ Вернитесь сюда и нажмите «Проверить подписку»",
-                reply_markup=get_subscribe_keyboard()
-            )
-            return
-
         admin_id = get_admin_id()
         async with db_pool.acquire() as connection:
             await connection.execute(
@@ -356,21 +263,8 @@ async def main():
     @dp.message_handler(commands=['portfolio'])
     @dp.message_handler(lambda message: message.text == "Портфолио")
     async def portfolio_start(message: types.Message, state: FSMContext):
-        subscription_status = await check_subscription(message.from_user.id)
-
-        if subscription_status['status']:
-
-            await state.update_data(page=1)
-            await show_portfolio_page(message, 1)
-
-        else:
-            await message.answer(
-                "👋 Для доступа к боту подпишитесь на канал.\n\n"
-                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
-                "2️⃣ Подпишитесь\n"
-                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
-                reply_markup=get_subscribe_keyboard()
-            )
+        await state.update_data(page=1)
+        await show_portfolio_page(message, 1)
 
     async def show_portfolio_page(message: types.Message, page: int, edit: bool = False):
         
@@ -431,17 +325,6 @@ async def main():
     @dp.message_handler(commands=['reset'])
     async def cmd_reset(message: types.Message, state: FSMContext):
         """Сброс прогресса — начать анкету заново."""
-        subscription_status = await check_subscription(message.from_user.id)
-        if not subscription_status['status']:
-            await message.answer(
-                "👋 Для доступа к боту подпишитесь на канал.\n\n"
-                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
-                "2️⃣ Подпишитесь\n"
-                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
-                reply_markup=get_subscribe_keyboard()
-            )
-            return
-
         user_id = message.from_user.id
         async with db_pool.acquire() as connection:
             await connection.execute(
@@ -478,43 +361,20 @@ async def main():
     @dp.message_handler(commands=['contacts'])
     @dp.message_handler(lambda message: message.text == "Контакты")
     async def contacts_command(message: types.Message):
-        subscription_status = await check_subscription(message.from_user.id)
-
-        if subscription_status['status']:
-
-            contacts_text = (
-                "Контакты:\n\n"
-                "1. Email: support@example.com\n"
-                "2. Телефон: +1 234 567 8900\n"
-                "3. Адрес: 123 Main Street, Anytown, AT 12345\n\n"
-                "Если у вас есть вопросы или вам нужна помощь, пожалуйста, свяжитесь с нами по указанным контактам."
-            )
-            await message.answer(contacts_text)
-
-        else:
-            await message.answer(
-                "👋 Для доступа к боту подпишитесь на канал.\n\n"
-                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
-                "2️⃣ Подпишитесь\n"
-                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
-                reply_markup=get_subscribe_keyboard()
-            )
+        contacts_text = (
+            "Контакты:\n\n"
+            "1. Email: support@example.com\n"
+            "2. Телефон: +1 234 567 8900\n"
+            "3. Адрес: 123 Main Street, Anytown, AT 12345\n\n"
+            "Если у вас есть вопросы или вам нужна помощь, пожалуйста, свяжитесь с нами по указанным контактам."
+        )
+        await message.answer(contacts_text)
 
     # Заполнение ТЗ --------------------------------
     
     @dp.message_handler(commands=['GO'])
     @dp.message_handler(lambda message: message.text == "Начать", state='*')
     async def ask_for_phone(message: types.Message, state: FSMContext):
-        if not await is_user_in_channel(message.from_user.id):
-            await message.answer(
-                "👋 Для доступа к боту подпишитесь на канал.\n\n"
-                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
-                "2️⃣ Подпишитесь\n"
-                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
-                reply_markup=get_subscribe_keyboard()
-            )
-            return
-
         # Удаляем открытую клавиатуру
         await message.answer("Продолжаем опрос", reply_markup=types.ReplyKeyboardRemove())
 
@@ -645,47 +505,33 @@ async def main():
 
     @dp.message_handler(lambda message: message.text == "Продолжить", state='*')
     async def start_questionnaire(message: types.Message, state: FSMContext, last_step=None, request_id=None):
+        questions = load_questions()
+        user_id = message.from_user.id
 
-        subscription_status = await check_subscription(message.from_user.id)
+        if request_id is None:
+            request_id = await get_request_id(user_id)
 
-        if subscription_status['status']:
+        # Загружаем сохраненные ответы
+        answers, custom_answers = await load_user_answers(user_id, request_id)
 
-            questions = load_questions()
-            user_id = message.from_user.id
+        if last_step is None:
+            # Получаем последний сохраненный шаг из базы данных
+            async with db_pool.acquire() as connection:
+                last_step = await connection.fetchval(
+                    """
+                    SELECT last_step FROM users_designer
+                    WHERE id_telegram = $1
+                    """,
+                    user_id
+                )
 
-            if request_id is None:
-                request_id = await get_request_id(user_id)
+        # Устанавливаем индекс текущего вопроса (last_step может быть None для нового пользователя)
+        current_question_index = max((last_step or 1) - 1, 0)
 
-            # Загружаем сохраненные ответы
-            answers, custom_answers = await load_user_answers(user_id, request_id)
+        # Обновляем состояние
+        await state.update_data(questions=questions, current_question_index=current_question_index, answers=answers, custom_answers=custom_answers, request_id=request_id)
 
-            if last_step is None:
-                # Получаем последний сохраненный шаг из базы данных
-                async with db_pool.acquire() as connection:
-                    last_step = await connection.fetchval(
-                        """
-                        SELECT last_step FROM users_designer
-                        WHERE id_telegram = $1
-                        """,
-                        user_id
-                    )
-
-            # Устанавливаем индекс текущего вопроса (last_step может быть None для нового пользователя)
-            current_question_index = max((last_step or 1) - 1, 0)
-
-            # Обновляем состояние
-            await state.update_data(questions=questions, current_question_index=current_question_index, answers=answers, custom_answers=custom_answers, request_id=request_id)
-            
-            await ask_question(message, state)
-            
-        else:
-            await message.answer(
-                "👋 Для доступа к боту подпишитесь на канал.\n\n"
-                "1️⃣ Нажмите «Подписаться на канал» — откроется канал\n"
-                "2️⃣ Подпишитесь\n"
-                "3️⃣ Вернитесь и нажмите «Проверить подписку»",
-                reply_markup=get_subscribe_keyboard()
-            )
+        await ask_question(message, state)
 
     # Функция для обрезки текста
     def truncate_text(text, max_length=64):
@@ -1463,7 +1309,10 @@ async def main():
         if message.from_user.id not in get_admin_ids():
             return
         if SKIP_SUB_CHECK:
-            await message.answer("SKIP_SUB_CHECK=1 — проверка отключена, кнопки работают по честному слову.")
+            await message.answer(
+                "SKIP_SUB_CHECK=1 — getChatMember не вызывается (диагностика отключена). "
+                "Работа бота не зависит от этой переменной."
+            )
             return
         uid = message.from_user.id
         channel = f'@{CHANNEL_USERNAME.lstrip("@")}'
@@ -1472,7 +1321,9 @@ async def main():
             status = getattr(member, 'status', '?')
             await message.answer(f"Подписка: status={status}, channel={channel}")
         except Exception as e:
-            await message.answer(f"Ошибка: {e}\n\nДобавь SKIP_SUB_CHECK=1 в .env — тогда кнопки будут работать без проверки API.")
+            await message.answer(
+                f"Ошибка: {e}\n\nПри необходимости поставьте SKIP_SUB_CHECK=1 для пропуска этого тестового запроса."
+            )
 
     # Команда /manual
     @dp.message_handler(commands=['manual'])
